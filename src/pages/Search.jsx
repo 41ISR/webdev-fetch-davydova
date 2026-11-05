@@ -1,9 +1,12 @@
 import { useSearchParams, useNavigate } from "react-router-dom"
 import { useEffect, useState } from "react"
 import BookCard from "../components/BookCard"
+import Loader from "../components/Loader"
 
 const Search = () => {
     const [books, setBooks] = useState(undefined)
+    const [isLoading, setIsLoading]= useState(false)
+    const[error, setIsError] = useState(null)
     const navigate = useNavigate()
     const [searchParams] = useSearchParams()
     const queryParam = searchParams.get("q") || ""
@@ -18,11 +21,25 @@ const Search = () => {
 
     useEffect(() => {
         const load = async () => {
-            const res = await fetch('https://openlibrary.org/search.json?q=' + queryParam + "&limit=10")
+            setIsError(null)
+            setIsLoading(true)
+
+            try {
+                const res = await fetch('https://openlibrary.org/search.json?q=' + queryParam + "&limit=10")
+                if (!res.ok) {
+                    const error = await res.json()
+                    throw new Error(error.detail[0].msg)
+}
+                const data = await res.json()
+                setBooks(data)
+            } catch (error) {
+                    console.error(error)
+                    setIsError(error.message ?? "Что-то пошло не так")
+
+            }  finally {
+                setIsLoading(false)
+            }
             
-            const data = await res.json()
-            console.log(data)
-            setBooks(data)
         }
         load()
     }, [queryParam])
@@ -56,12 +73,19 @@ const Search = () => {
                 </span>
                 }
             </div>
-            {books?.docs.length > 0 && (
+            {isLoading && <Loader />}
+            {!isLoading && error && <div className="error">{error}</div>}
+            {!isLoading && !error && books?.docs.length > 0 && (
             <div className="book-grid" id="results">
                 {books.docs.map((el, i) => ( 
-                <BookCard {...el} key={i} />))}
+                <BookCard {...el} key={i} />
+                ))}
 
             </div>
+
+         )}
+            {!isLoading && !error && books?.docs.length === 0 && (
+                 <div>Книги не были найдены</div>
            )}
         </section>
     )
